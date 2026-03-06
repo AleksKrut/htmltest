@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Liquid Glass Notes — файлы заметок</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #1a2f3f 0%, #162b38 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        /* Основной контейнер — стеклянная карточка */
+        .glass-app {
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px) saturate(180%);
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            border-radius: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 25px 40px -10px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-weight: 400;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+            padding-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Основное содержимое с колонками */
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            min-height: 0; /* чтобы flex дети не вылезали */
+            position: relative;
+        }
+
+        /* Боковая панель со списком заметок */
+        .notes-sidebar {
+            width: 280px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 28px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 15px;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.3rem;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        .new-note-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .new-note-btn:hover {
+            background: rgba(255,255,255,0.35);
+        }
+
+        .notes-list {
+            list-style: none;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 5px;
+        }
+
+        .notes-list li {
+            background: rgba(255,255,255,0.1);
+            border-radius: 40px;
+            padding: 12px 18px;
+            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            word-break: break-word;
+        }
+
+        .notes-list li.active {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.6);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .note-item-title {
+            flex: 1;
+            font-size: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .delete-note-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.6);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 5px;
+            transition: 0.2s;
+        }
+
+        .delete-note-btn:hover {
+            color: #ffa0a0;
+            transform: scale(1.2);
+        }
+
+        /* Область редактора заметки */
+        .editor-panel {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 28px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(8px);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 0;
+            overflow-y: auto;
+        }
+
+        /* Панель инструментов (шрифт, фон, переключение режима) */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 50px;
+            padding: 12px 18px;
+            border: 1px solid rgba(255,255,255,0.15);
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tool-group label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        select, input[type="color"], button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 30px;
+            padding: 6px 14px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        select option {
+            background: #1e3a4a;
+            color: white;
+        }
+
+        input[type="color"] {
+            width: 45px;
+            height: 35px;
+            padding: 3px;
+        }
+
+        .mode-switch {
+            display: flex;
+            gap: 5px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 40px;
+            padding: 4px;
+            margin-left: auto;
+        }
+
+        .mode-btn {
+            border: none;
+            background: transparent;
+            border-radius: 30px;
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+            transition: 0.2s;
+        }
+
+        .mode-btn.active {
+            background: rgba(255,255,255,0.25);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Область заметки внутри редактора */
+        .note-area {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 28px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s, color 0.3s;
+            color: inherit;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 200px;
+        }
+
+        /* Текстовая заметка */
+        .text-note {
+            width: 100%;
+            min-height: 150px;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: inherit;
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .text-note::placeholder {
+            color: rgba(255,255,255,0.5);
+            font-style: italic;
+        }
+
+        /* Продуктовая заметка */
+        .products-note {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .store-field {
+            background: rgba(255,255,255,0.1);
+            border-radius: 40px;
+            padding: 10px 18px;
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .store-field label {
+            font-weight: 300;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .store-field input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 0.95rem;
+            padding: 5px 0;
+        }
+
+        .store-field input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .product-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .product-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 40px;
+            padding: 6px 15px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .product-name {
+            flex: 2;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 0.95rem;
+            padding: 8px 5px;
+        }
+
+        .product-quantity {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 30px;
+            padding: 6px 10px;
+            color: white;
+            outline: none;
+            text-align: center;
+            min-width: 70px;
+        }
+
+        .product-quantity::placeholder {
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+        }
+
+        .remove-product {
+            background: rgba(255,70,70,0.2);
+            border: 1px solid rgba(255,100,100,0.3);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #ffa0a0;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+
+        .remove-product:hover {
+            background: rgba(255,70,70,0.5);
+            color: white;
+        }
+
+        .add-product-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px dashed rgba(255,255,255,0.4);
+            border-radius: 40px;
+            padding: 12px;
+            color: white;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 10px;
+        }
+
+        .add-product-btn:hover {
+            background: rgba(255,255,255,0.25);
+            border-style: solid;
+        }
+
+        /* Кнопка "Назад" для мобильной версии */
+        .mobile-back-btn {
+            display: none;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 40px;
+            padding: 8px 18px;
+            margin-bottom: 10px;
+            align-self: flex-start;
+            cursor: pointer;
+            font-size: 0.9rem;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Адаптация под мобильные */
+        @media (max-width: 700px) {
+            .glass-app {
+                padding: 15px;
+                height: 95vh;
+            }
+
+            .main-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .notes-sidebar {
+                width: 100%;
+                max-height: 40%;
+                transform: none;
+            }
+
+            .editor-panel {
+                width: 100%;
+                flex: 1;
+                display: flex;
+            }
+
+            /* Состояние когда скрываем список на мобильном */
+            .main-content.show-editor .notes-sidebar {
+                display: none;
+            }
+
+            .main-content.show-editor .editor-panel {
+                display: flex;
+            }
+
+            .mobile-back-btn {
+                display: inline-flex;
+            }
+        }
+
+        /* По умолчанию на мобильном показываем список, редактор скрыт */
+        @media (max-width: 700px) {
+            .editor-panel {
+                display: none;
+            }
+            .main-content.show-editor .editor-panel {
+                display: flex;
+            }
+        }
+
+        /* Кнопка назад будет управлять классом на main-content */
+    </style>
+</head>
+<body>
+    <div class="glass-app" id="app">
+        <h1>🍋 LIQUID NOTES</h1>
+
+        <!-- Кнопка назад для мобильной версии (дублируется и показывается только в редакторе) -->
+        <div class="mobile-back-btn" id="backToNotesBtn">← К списку заметок</div>
+
+        <div class="main-content" id="mainContent">
+            <!-- Список заметок (сайдбар) -->
+            <div class="notes-sidebar" id="notesSidebar">
+                <div class="sidebar-header">
+                    <h2>Мои заметки</h2>
+                    <div class="new-note-btn" id="createNewNote">➕ Новая</div>
+                </div>
+                <ul class="notes-list" id="notesList">
+                    <!-- Заполняется динамически -->
+                </ul>
+            </div>
+
+            <!-- Редактор заметки -->
+            <div class="editor-panel" id="editorPanel">
+                <!-- Панель настроек -->
+                <div class="toolbar">
+                    <div class="tool-group">
+                        <label>Шрифт</label>
+                        <select id="fontSelector">
+                            <option value="system-ui">Системный</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="'Times New Roman', serif">Times New Roman</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+                            <option value="'Roboto', sans-serif">Roboto</option>
+                        </select>
+                    </div>
+                    <div class="tool-group">
+                        <label>Фон</label>
+                        <input type="color" id="bgColor" value="#1e3a4a">
+                    </div>
+                    <div class="mode-switch" id="modeSwitch">
+                        <button class="mode-btn active" data-mode="text">📝 Текст</button>
+                        <button class="mode-btn" data-mode="products">🛒 Продукты</button>
+                    </div>
+                </div>
+
+                <!-- Область заметки -->
+                <div class="note-area" id="noteArea">
+                    <!-- Обычный текстовый режим -->
+                    <div id="textModeBlock" class="text-mode">
+                        <textarea class="text-note" id="textNote" placeholder="Напишите что-нибудь..."></textarea>
+                    </div>
+
+                    <!-- Режим продуктов (скрыт по умолчанию) -->
+                    <div id="productsModeBlock" class="products-note" style="display: none;">
+                        <div class="store-field">
+                            <label>🏪 Магазин:</label>
+                            <input type="text" id="storeName" placeholder="Название магазина" value="Супермаркет">
+                        </div>
+
+                        <div class="product-list" id="productListContainer">
+                            <!-- Динамические продукты -->
+                        </div>
+
+                        <div class="add-product-btn" id="addProductBtn">
+                            <span>➕</span> Добавить продукт
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== Элементы DOM ====================
+            const fontSelector = document.getElementById('fontSelector');
+            const bgColorInput = document.getElementById('bgColor');
+            const noteArea = document.getElementById('noteArea');
+            const textNote = document.getElementById('textNote');
+            const modeButtons = document.querySelectorAll('.mode-btn');
+            const textModeBlock = document.getElementById('textModeBlock');
+            const productsModeBlock = document.getElementById('productsModeBlock');
+            const addProductBtn = document.getElementById('addProductBtn');
+            const productListContainer = document.getElementById('productListContainer');
+            const storeNameInput = document.getElementById('storeName');
+            const notesList = document.getElementById('notesList');
+            const createNewBtn = document.getElementById('createNewNote');
+            const backToNotesBtn = document.getElementById('backToNotesBtn');
+            const mainContent = document.getElementById('mainContent');
+
+            // ==================== Состояние приложения ====================
+            let notes = [];                     // массив заметок
+            let activeNoteId = null;             // ID текущей открытой заметки
+            let isMobile = window.innerWidth <= 700;
+
+            // ==================== Загрузка из localStorage ====================
+            function loadNotes() {
+                const stored = localStorage.getItem('liquidNotes');
+                if (stored) {
+                    try {
+                        notes = JSON.parse(stored);
+                    } catch (e) {
+                        notes = [];
+                    }
+                } else {
+                    // Начальные демо-заметки
+                    notes = [
+                        {
+                            id: generateId(),
+                            title: 'Приветствие',
+                            type: 'text',
+                            content: 'Добро пожаловать в Liquid Glass Notes!\n\nЭто текстовая заметка. Вы можете менять шрифт и фон.',
+                            settings: { font: 'system-ui', bgColor: '#1e3a4a' }
+                        },
+                        {
+                            id: generateId(),
+                            title: 'Список покупок',
+                            type: 'products',
+                            content: {
+                                store: 'Супермаркет',
+                                items: [
+                                    { name: 'Яблоки', quantity: '1 кг' },
+                                    { name: 'Хлеб', quantity: '2 шт' },
+                                    { name: 'Молоко', quantity: '1 л' }
+                                ]
+                            },
+                            settings: { font: 'system-ui', bgColor: '#1e3a4a' }
+                        }
+                    ];
+                }
+                // Убедимся, что у каждой заметки есть поле settings
+                notes = notes.map(note => {
+                    if (!note.settings) note.settings = { font: 'system-ui', bgColor: '#1e3a4a' };
+                    return note;
+                });
+                if (notes.length > 0 && !activeNoteId) {
+                    activeNoteId = notes[0].id;
+                }
+                renderNotesList();
+                if (activeNoteId) {
+                    openNoteById(activeNoteId);
+                } else {
+                    // очищаем редактор
+                    clearEditor();
+                }
+            }
+
+            function saveNotes() {
+                localStorage.setItem('liquidNotes', JSON.stringify(notes));
+            }
+
+            function generateId() {
+                return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            }
+
+            // ==================== Рендер списка заметок ====================
+            function renderNotesList() {
+                notesList.innerHTML = '';
+                notes.forEach(note => {
+                    const li = document.createElement('li');
+                    li.className = note.id === activeNoteId ? 'active' : '';
+                    li.dataset.id = note.id;
+
+                    const titleSpan = document.createElement('span');
+                    titleSpan.className = 'note-item-title';
+                    titleSpan.textContent = note.title || (note.type === 'text' ? 'Без названия' : 'Список продуктов');
+
+                    const deleteBtn = document.createElement('span');
+                    deleteBtn.className = 'delete-note-btn';
+                    deleteBtn.innerHTML = '✕';
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteNote(note.id);
+                    });
+
+                    li.appendChild(titleSpan);
+                    li.appendChild(deleteBtn);
+                    li.addEventListener('click', () => {
+                        openNoteById(note.id);
+                        // На мобильных после выбора показываем редактор
+                        if (isMobile) {
+                            mainContent.classList.add('show-editor');
+                        }
+                    });
+
+                    notesList.appendChild(li);
+                });
+            }
+
+            // ==================== Удаление заметки ====================
+            function deleteNote(id) {
+                notes = notes.filter(n => n.id !== id);
+                if (activeNoteId === id) {
+                    if (notes.length > 0) {
+                        activeNoteId = notes[0].id;
+                        openNoteById(activeNoteId);
+                    } else {
+                        activeNoteId = null;
+                        clearEditor();
+                    }
+                }
+                saveNotes();
+                renderNotesList();
+            }
+
+            // ==================== Создание новой заметки ====================
+            function createNote(type = 'text') {
+                const newNote = {
+                    id: generateId(),
+                    title: type === 'text' ? 'Новая заметка' : 'Новый список',
+                    type: type,
+                    content: type === 'text' ? '' : { store: '', items: [] },
+                    settings: { font: 'system-ui', bgColor: '#1e3a4a' }
+                };
+                notes.push(newNote);
+                saveNotes();
+                renderNotesList();
+                openNoteById(newNote.id);
+                if (isMobile) {
+                    mainContent.classList.add('show-editor');
+                }
+            }
+
+            // ==================== Открыть заметку по ID ====================
+            function openNoteById(id) {
+                const note = notes.find(n => n.id === id);
+                if (!note) return;
+                activeNoteId = id;
+
+                // Применить настройки шрифта и цвета
+                if (note.settings) {
+                    fontSelector.value = note.settings.font || 'system-ui';
+                    bgColorInput.value = note.settings.bgColor || '#1e3a4a';
+                } else {
+                    fontSelector.value = 'system-ui';
+                    bgColorInput.value = '#1e3a4a';
+                }
+                applyFont();
+                applyBgColor();
+
+                // Установить режим и данные
+                if (note.type === 'text') {
+                    setMode('text');
+                    textNote.value = note.content || '';
+                } else {
+                    setMode('products');
+                    const content = note.content || { store: '', items: [] };
+                    storeNameInput.value = content.store || '';
+                    // Очистить и заполнить список продуктов
+                    productListContainer.innerHTML = '';
+                    if (content.items && content.items.length > 0) {
+                        content.items.forEach(item => {
+                            addProductItem(item.name, item.quantity);
+                        });
+                    } else {
+                        // добавить пустую строку для удобства
+                        addProductItem('', '');
+                    }
+                }
+
+                // Обновить активный класс в списке
+                renderNotesList();
+            }
+
+            // ==================== Очистить редактор ====================
+            function clearEditor() {
+                textNote.value = '';
+                storeNameInput.value = '';
+                productListContainer.innerHTML = '';
+                setMode('text');
+            }
+
+            // ==================== Переключение режимов ====================
+            function setMode(mode) {
+                if (mode === 'text') {
+                    textModeBlock.style.display = 'block';
+                    productsModeBlock.style.display = 'none';
+                } else {
+                    textModeBlock.style.display = 'none';
+                    productsModeBlock.style.display = 'flex';
+                }
+                modeButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === mode);
+                });
+            }
+
+            // ==================== Применить шрифт ====================
+            function applyFont() {
+                const fontFamily = fontSelector.value;
+                noteArea.style.fontFamily = fontFamily;
+                textNote.style.fontFamily = fontFamily;
+                // сохранить в текущей заметке
+                if (activeNoteId) {
+                    const note = notes.find(n => n.id === activeNoteId);
+                    if (note) {
+                        if (!note.settings) note.settings = {};
+                        note.settings.font = fontFamily;
+                        saveNotes();
+                    }
+                }
+            }
+
+            // ==================== Применить цвет фона ====================
+            function applyBgColor() {
+                const color = bgColorInput.value;
+                noteArea.style.backgroundColor = color;
+                if (activeNoteId) {
+                    const note = notes.find(n => n.id === activeNoteId);
+                    if (note) {
+                        if (!note.settings) note.settings = {};
+                        note.settings.bgColor = color;
+                        saveNotes();
+                    }
+                }
+            }
+
+            // ==================== Работа с продуктами ====================
+            function createProductItem(name = '', quantity = '') {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'product-item';
+
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'product-name';
+                nameInput.placeholder = 'Например: Молоко';
+                nameInput.value = name;
+
+                const quantityInput = document.createElement('input');
+                quantityInput.type = 'text';
+                quantityInput.className = 'product-quantity';
+                quantityInput.placeholder = 'Кол-во';
+                quantityInput.value = quantity;
+
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-product';
+                removeBtn.innerHTML = '✕';
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    itemDiv.remove();
+                    saveCurrentProducts();
+                });
+
+                // Сохранять изменения при вводе
+                nameInput.addEventListener('input', saveCurrentProducts);
+                quantityInput.addEventListener('input', saveCurrentProducts);
+
+                itemDiv.appendChild(nameInput);
+                itemDiv.appendChild(quantityInput);
+                itemDiv.appendChild(removeBtn);
+
+                return itemDiv;
+            }
+
+            function addProductItem(name = '', quantity = '') {
+                const newItem = createProductItem(name, quantity);
+                productListContainer.appendChild(newItem);
+                saveCurrentProducts();
+            }
+
+            // Сохранить текущее состояние продуктов в активную заметку
+            function saveCurrentProducts() {
+                if (!activeNoteId) return;
+                const note = notes.find(n => n.id === activeNoteId);
+                if (!note || note.type !== 'products') return;
+
+                const items = [];
+                document.querySelectorAll('.product-item').forEach(item => {
+                    const name = item.querySelector('.product-name')?.value.trim() || '';
+                    const quantity = item.querySelector('.product-quantity')?.value.trim() || '';
+                    if (name !== '' || quantity !== '') {
+                        items.push({ name, quantity });
+                    }
+                });
+
+                note.content = {
+                    store: storeNameInput.value.trim(),
+                    items: items
+                };
+
+                // Обновить заголовок заметки (первый продукт как название, если есть)
+                if (items.length > 0 && items[0].name) {
+                    note.title = items[0].name + (items.length > 1 ? '...' : '');
+                } else {
+                    note.title = 'Список покупок';
+                }
+
+                saveNotes();
+                renderNotesList(); // обновить заголовок в списке
+            }
+
+            // Сохранить текстовую заметку
+            function saveTextNote() {
+                if (!activeNoteId) return;
+                const note = notes.find(n => n.id === activeNoteId);
+                if (!note || note.type !== 'text') return;
+                note.content = textNote.value;
+                // Обновить заголовок (первая строка)
+                const firstLine = textNote.value.split('\n')[0].trim();
+                note.title = firstLine || 'Новая заметка';
+                saveNotes();
+                renderNotesList();
+            }
+
+            // ==================== События ====================
+            fontSelector.addEventListener('change', applyFont);
+            bgColorInput.addEventListener('input', applyBgColor);
+
+            textNote.addEventListener('input', saveTextNote);
+
+            storeNameInput.addEventListener('input', saveCurrentProducts);
+
+            addProductBtn.addEventListener('click', () => {
+                addProductItem('', '');
+            });
+
+            modeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mode = btn.dataset.mode;
+                    if (!activeNoteId) return;
+                    const note = notes.find(n => n.id === activeNoteId);
+                    if (!note) return;
+                    // Если режим не совпадает, меняем тип заметки (осторожно, потеря данных)
+                    if (mode !== note.type) {
+                        if (confirm('Переключение режима очистит текущее содержимое заметки. Продолжить?')) {
+                            // Очищаем содержимое
+                            if (mode === 'text') {
+                                note.type = 'text';
+                                note.content = '';
+                                note.title = 'Новая заметка';
+                            } else {
+                                note.type = 'products';
+                                note.content = { store: '', items: [] };
+                                note.title = 'Список покупок';
+                            }
+                            saveNotes();
+                            openNoteById(activeNoteId);
+                        } else {
+                            // возвращаем переключатель в исходное положение
+                            setMode(note.type);
+                        }
+                    }
+                });
+            });
+
+            createNewBtn.addEventListener('click', () => {
+                // Простое меню выбора типа: можно сделать всплывашку, но для простоты создадим текстовую
+                // Можно реализовать выбор через prompt или дополнительное меню, но ограничимся текстовой
+                // Чтобы не усложнять, создаём текстовую. Пользователь потом переключит.
+                createNote('text');
+            });
+
+            // Кнопка назад на мобильных
+            backToNotesBtn.addEventListener('click', () => {
+                mainContent.classList.remove('show-editor');
+            });
+
+            // Обработка ресайза для определения мобильности
+            window.addEventListener('resize', () => {
+                isMobile = window.innerWidth <= 700;
+                if (!isMobile) {
+                    mainContent.classList.remove('show-editor'); // сброс
+                }
+            });
+
+            // ==================== Запуск ====================
+            loadNotes();
+
+            // Дополнительно: при клике вне, но нам не нужно
+        })();
+    </script>
+</body>
+</html>
